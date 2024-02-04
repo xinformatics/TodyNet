@@ -10,9 +10,6 @@ import torch.backends.cudnn as cudnn
 from net import GNNStack
 from utils import AverageMeter, accuracy, log_msg, get_default_train_val_test_loader
 
-from tqdm import tqdm
-from sklearn.metrics import roc_auc_score, average_precision_score
-
 
 parser = argparse.ArgumentParser(description='PyTorch UEA Training')
 parser.add_argument('-a', '--arch', metavar='ARCH', default='dyGIN2d')
@@ -21,14 +18,12 @@ parser.add_argument('--num_layers', type=int, default=3, help='the number of GNN
 parser.add_argument('--groups', type=int, default=4, help='the number of time series groups (num_graphs)')
 parser.add_argument('--pool_ratio', type=float, default=0.2, help='the ratio of pooling for nodes')
 parser.add_argument('--kern_size', type=str, default="9,5,3", help='list of time conv kernel size for each layer')
-# parser.add_argument('--kern_size', type=str, default="5", help='list of time conv kernel size for each layer')
-
 parser.add_argument('--in_dim', type=int, default=64, help='input dimensions of GNN stacks')
-parser.add_argument('--hidden_dim', type=int, default=32, help='hidden dimensions of GNN stacks')
-parser.add_argument('--out_dim', type=int, default=32, help='output dimensions of GNN stacks')
+parser.add_argument('--hidden_dim', type=int, default=128, help='hidden dimensions of GNN stacks')
+parser.add_argument('--out_dim', type=int, default=256, help='output dimensions of GNN stacks')
 parser.add_argument('-j', '--workers', default=0, type=int, metavar='N', 
                     help='number of data loading workers (default: 0)')
-parser.add_argument('--epochs', default=20, type=int, metavar='N', 
+parser.add_argument('--epochs', default=2000, type=int, metavar='N', 
                     help='number of total epochs to run')
 parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N',
@@ -129,7 +124,7 @@ def main_work(args):
     # train & valid
     print('****************************************************')
     print(args.dataset)
-    # print(type(args.dataset))
+
     dataset_time = AverageMeter('Time', ':6.3f')
 
     loss_train = []
@@ -139,7 +134,7 @@ def main_work(args):
     epoches = []
 
     end = time.time()
-    for epoch in tqdm(range(args.epochs)):
+    for epoch in range(args.epochs):
         epoches += [epoch]
 
         # train for one epoch
@@ -234,23 +229,8 @@ def validate(val_loader, model, criterion, args):
 
             loss = criterion(output, label)
 
-            # ##some added code
-            # probabilities = torch.sigmoid(output).detach().cpu().numpy()
-            # true_labels = label.cpu().numpy()
-
-            # # Calculate AUROC and AUCPR
-            # auroc = roc_auc_score(true_labels, probabilities)
-            # aucpr = average_precision_score(true_labels, probabilities)
-
-            # print("AUROC: ", auroc)
-            # print("AUCPR: ", aucpr)
-            print(output.shape, label.shape)
-            print(output)
-            break
             # measure accuracy and record loss
-
             acc1 = accuracy(output, label, topk=(1, 1))
-            print(acc1)
             losses.update(loss.item(), data.size(0))
             top1.update(acc1[0], data.size(0))
 
