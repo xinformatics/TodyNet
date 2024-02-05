@@ -1,0 +1,14 @@
+epochs 10, lr 0.0003, weight_decay 0.0001
+{'arch': 'dyGIN2d', 'dataset': 'Mortality', 'num_layers': 2, 'groups': 6, 'pool_ratio': 0.2, 'kern_size': [7, 5], 'in_dim': 64, 'hidden_dim': 64, 'out_dim': 64, 'workers': 0, 'epochs': 10, 'batch_size': 16, 'val_batch_size': 16, 'lr': 0.0003, 'weight_decay': 0.0001, 'evaluate': False, 'seed': 42, 'gpu': 0, 'use_benchmark': True, 'tag': '02.04 23:30'}
+TRAIN, epoch 0, train_loss 0.5090363005049462, train_acc tensor([81.6990], device='cuda:0'), train_roc 0.83179, train_pr 0.33436
+VAL, epoch 0, val_loss 0.43735925977484413, val_acc tensor([86.6876], device='cuda:0'), val_roc 0.87625, val_pr 0.45674
+TRAIN, epoch 1, train_loss 0.43967759012269775, train_acc tensor([85.1197], device='cuda:0'), train_roc 0.87841, train_pr 0.44099
+VAL, epoch 1, val_loss 0.42962855084601775, val_acc tensor([77.5885], device='cuda:0'), val_roc 0.89211, val_pr 0.52122
+TRAIN, epoch 2, train_loss 0.4080138960431982, train_acc tensor([86.5165], device='cuda:0'), train_roc 0.89739, train_pr 0.46681
+VAL, epoch 2, val_loss 0.4130307727333464, val_acc tensor([80.6813], device='cuda:0'), val_roc 0.89369, val_pr 0.56480
+TRAIN, epoch 3, train_loss 0.3695255558908054, train_acc tensor([86.8016], device='cuda:0'), train_roc 0.91603, train_pr 0.52901
+VAL, epoch 3, val_loss 0.42129197785508093, val_acc tensor([89.5114], device='cuda:0'), val_roc 0.89268, val_pr 0.55631
+TRAIN, epoch 4, train_loss 0.3476258121269459, train_acc tensor([88.4645], device='cuda:0'), train_roc 0.92513, train_pr 0.54760
+VAL, epoch 4, val_loss 0.4405476905702743, val_acc tensor([88.4357], device='cuda:0'), val_roc 0.88923, val_pr 0.55610
+TRAIN, epoch 5, train_loss 0.3176125181022591, train_acc tensor([89.3387], device='cuda:0'), train_roc 0.94057, train_pr 0.59429
+VAL, epoch 5, val_loss 0.4329013443685123, val_acc tensor([85.2981], device='cuda:0'), val_roc 0.89161, val_pr 0.54593

@@ -10,7 +10,11 @@ class GNNStack(nn.Module):
 
     def __init__(self, gnn_model_type, num_layers, groups, pool_ratio, kern_size, 
                  in_dim, hidden_dim, out_dim, 
-                 seq_len, num_nodes, num_classes, dropout=0.5, activation=nn.ReLU()):
+                 seq_len, num_nodes, num_classes, dropout=0.5, 
+                 # activation=nn.ReLU()
+                 activation=nn.SELU()
+                
+                ):
 
         super().__init__()
         

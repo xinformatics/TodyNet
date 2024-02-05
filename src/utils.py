@@ -36,6 +36,9 @@ def accuracy(output, target, topk=(1,)):
 
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
+
+        print(pred.shape, target.shape)
+
         correct = pred.eq(target.view(1, -1).expand_as(pred))
 
         res = []
@@ -56,9 +59,13 @@ def get_default_train_val_test_loader(args):
 
     # get dataset from .pt
     data_train = torch.load(f'../data/UCR/{dsid}/X_train.pt')
-    data_val = torch.load(f'../data/UCR/{dsid}/X_valid.pt')
+    # data_val = torch.load(f'../data/UCR/{dsid}/X_valid.pt')
+    data_val = torch.load(f'../data/UCR/{dsid}/X_test.pt')
+
+
     label_train = torch.load(f'../data/UCR/{dsid}/y_train.pt')
-    label_val = torch.load(f'../data/UCR/{dsid}/y_valid.pt')
+    # label_val = torch.load(f'../data/UCR/{dsid}/y_valid.pt')
+    label_val = torch.load(f'../data/UCR/{dsid}/y_test.pt')
 
     # init [num_variables, seq_length, num_classes]
     num_nodes = data_val.size(-2)

@@ -1,6 +1,7 @@
 import torch
 import torch.utils.data
 from torch.utils.data import TensorDataset
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 
 class AverageMeter(object):
@@ -30,18 +31,43 @@ class AverageMeter(object):
 
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
+    
+    
     with torch.no_grad():
         maxk = max(topk)
         batch_size = target.size(0)
 
         _, pred = output.topk(maxk, 1, True, True)
         pred = pred.t()
+              
         correct = pred.eq(target.view(1, -1).expand_as(pred))
+        
+        # print(output, target)
 
         res = []
         for k in topk:
             correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
+           
             res.append(correct_k.mul_(100.0 / batch_size))
+            
+        # print(correct_k)
+        
+        
+        ## calculation of auc-roc and auc-pr
+        # output_np = torch.softmax(output, dim=1).detach().cpu().numpy()[:,1]
+        # print(output_np, target)
+        # target_np = target.detach().cpu().numpy()
+        # try:
+        #     auc_roc_value = roc_auc_score(target_np, output_np)
+        # except ValueError:
+        #     auc_roc_value = 0
+        #     pass
+        # auc_roc_value = roc_auc_score(target_np, output_np)
+        # auc_pr_value = average_precision_score(target_np, output_np)
+        
+        # print(auc_roc_value, auc_pr_value)
+        
+        # return res, auc_roc_value, auc_pr_value
         return res
 
 def log_msg(message, log_file):
@@ -56,9 +82,12 @@ def get_default_train_val_test_loader(args):
 
     # get dataset from .pt
     data_train  = torch.load(f'data/UCR/{dsid}/X_train.pt')
-    data_val    = torch.load(f'data/UCR/{dsid}/X_valid.pt')
+    # data_val    = torch.load(f'data/UCR/{dsid}/X_valid.pt')
+    data_val    = torch.load(f'data/UCR/{dsid}/X_test.pt')
+    
     label_train = torch.load(f'data/UCR/{dsid}/y_train.pt')
-    label_val   = torch.load(f'data/UCR/{dsid}/y_valid.pt')
+    # label_val   = torch.load(f'data/UCR/{dsid}/y_valid.pt')
+    label_val   = torch.load(f'data/UCR/{dsid}/y_test.pt')
 
     # init [num_variables, seq_length, num_classes]
     num_nodes = data_val.size(-2)
