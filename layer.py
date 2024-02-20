@@ -246,3 +246,144 @@ class Dense_TimeDiffPool2d(nn.Module):
         out_adj = torch.matmul(torch.matmul(s, adj), s.transpose(0, 1))
         
         return out, out_adj
+
+    
+    
+    
+    
+    
+    
+    
+    
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn import Parameter, Linear
+
+class DenseGINConv2d_v2(nn.Module):
+    
+    def __init__(self, in_channels, out_channels, groups=1, eps=0, train_eps=True, activation=F.relu):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.groups = groups
+        self.activation = activation
+        
+        # Multi-layer MLP with Group Linear Layers
+        self.mlp = nn.Sequential(
+            nn.Linear(in_channels, out_channels, bias=False),
+            nn.BatchNorm1d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(out_channels, out_channels, bias=False),
+            nn.BatchNorm1d(out_channels)
+        )
+        
+        self.init_eps = eps
+        if train_eps:
+            self.eps = Parameter(torch.Tensor([eps]))
+        else:
+            self.register_buffer('eps', torch.Tensor([eps]))
+            
+        self.reset_parameters()
+            
+    def reset_parameters(self):
+        for layer in self.mlp:
+            if isinstance(layer, nn.Linear):
+                nn.init.kaiming_normal_(layer.weight, mode='fan_out', nonlinearity='relu')
+        self.eps.data.fill_(self.init_eps)
+        
+    def norm(self, adj: torch.Tensor, add_loop=True):
+        if add_loop:
+            adj = adj + torch.eye(adj.size(-1), device=adj.device)
+        deg_inv_sqrt = adj.sum(dim=-1).clamp(min=1).pow(-0.5)
+        adj = deg_inv_sqrt.unsqueeze(-1) * adj * deg_inv_sqrt.unsqueeze(-2)
+        return adj
+        
+    def forward(self, x: torch.Tensor, adj: torch.Tensor, add_loop=True):
+        adj = self.norm(adj, add_loop=add_loop)
+        
+        B, C, N, F = x.size()
+        x = x.view(B, C * N, F // (C * N)).transpose(1, 2)
+        
+        out = torch.matmul(adj, x)
+        out = out.transpose(1, 2).view(B, C, N, -1)
+        
+        # Apply MLP to each node feature vector
+        out = out.reshape(B * N, -1)
+        out = self.mlp(out)
+        out = out.reshape(B, C, N, -1)
+        
+        # Incorporate skip connection with learned ε
+        if add_loop:
+            out = (1 + self.eps) * x + out
+        
+        return out
+    
+    
+import torch
+import torch.nn.functional as F
+from torch.nn import Module, Linear, Parameter
+from torch.nn.init import xavier_uniform_
+
+class GraphAttentionLayer(nn.Module):
+    def __init__(self, in_features, out_features, dropout=0.6, alpha=0.2, concat=True):
+        super(GraphAttentionLayer, self).__init__()
+        self.dropout = dropout
+        self.in_features = in_features
+        self.out_features = out_features
+        self.alpha = alpha
+        self.concat = concat
+
+        self.W = Linear(in_features, out_features, bias=False)
+        self.a = Linear(2*out_features, 1, bias=False)
+
+        self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        xavier_uniform_(self.W.weight)
+        xavier_uniform_(self.a.weight)
+
+    def forward(self, input, adj):
+        h = self.W(input)
+        N = h.size()[1]
+
+        a_input = self._prepare_attentional_mechanism_input(h)
+        e = self.leakyrelu(self.a(a_input))
+
+        attention = F.softmax(e, dim=2)
+        attention = F.dropout(attention, self.dropout, training=self.training)
+        h_prime = torch.matmul(attention, h)
+
+        if self.concat:
+            return F.elu(h_prime)
+        else:
+            return h_prime
+
+    def _prepare_attentional_mechanism_input(self, Wh):
+        N = Wh.size()[1]  # number of nodes
+        Wh_repeated_in_chunks = Wh.repeat_interleave(N, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, N, 1)
+        
+        all_combinations_matrix = torch.cat([Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2)
+        
+        return all_combinations_matrix.view(-1, N, N, 2 * self.out_features)
+
+class GAT(nn.Module):
+    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
+        """Dense version of GAT."""
+        super(GAT, self).__init__()
+        self.dropout = dropout
+
+        self.attentions = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        for i, attention in enumerate(self.attentions):
+            self.add_module('attention_{}'.format(i), attention)
+
+        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
+
+    def forward(self, x, adj):
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = torch.cat([att(x, adj) for att in self.attentions], dim=2)
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = F.elu(self.out_att(x, adj))
+        return F.log_softmax(x, dim=1)
