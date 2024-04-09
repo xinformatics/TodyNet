@@ -1,6 +1,6 @@
 from math import ceil
-
-from layer import *
+import sys
+from layer_dev_graph import *
 
 
 class GNNStack(nn.Module):
@@ -69,7 +69,8 @@ class GNNStack(nn.Module):
         self.activation = activation
         
         self.softmax = nn.Softmax(dim=-1)
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
+        # self.global_pool = nn.AdaptiveAvgPool2d(1)
+        self.global_pool = nn.AdaptiveAvgPool2d((1,None))
         
         self.linear = nn.Linear(heads * out_dim, num_classes)
         
@@ -91,28 +92,82 @@ class GNNStack(nn.Module):
             return DenseGCNConv2d, 1
         if model_type == 'dyGIN2d':
             return DenseGINConv2d, 1
+        if model_type == 'dyGAT2d':
+            return DenseGATConv2d, 1
         
 
-    def forward(self, inputs: Tensor):
+    # def forward(self, inputs: Tensor):
         
+    #     if inputs.size(-1) % self.num_graphs:
+    #         pad_size = (self.num_graphs - inputs.size(-1) % self.num_graphs) / 2
+    #         x = F.pad(inputs, (int(pad_size), ceil(pad_size)), mode='constant', value=0.0)
+    #     else:
+    #         x = inputs
+            
+    #     adj = self.g_constr(x.device)
+        
+    #     for tconv, gconv, bn, pool in zip(self.tconvs, self.gconvs, self.bns, self.diffpool):
+            
+    #         x, adj = pool( gconv( tconv(x), adj ), adj )
+            
+    #         x = self.activation( bn(x) )
+            
+    #         x = F.dropout(x, p=self.dropout, training=self.training)
+        
+    #     # print('before pool',x.shape)
+    #     out = self.global_pool(x)
+    #     # print('after pool',out.shape)
+    #     # out = out.view(out.size(0),out.size(-1),-1)
+    #     out = out.view(out.size(0),-1)
+    #     # print('after reshape',out.shape)
+    #     out = self.linear(out)
+    #     # print('logits shape',out.shape)
+    #     # break
+    #     return out
+    def forward(self, inputs: Tensor):
+        feature_time_maps = []
+        adj_matrices = []
+        wadj_matrices = []
+    
         if inputs.size(-1) % self.num_graphs:
             pad_size = (self.num_graphs - inputs.size(-1) % self.num_graphs) / 2
             x = F.pad(inputs, (int(pad_size), ceil(pad_size)), mode='constant', value=0.0)
         else:
             x = inputs
-            
+        # print(x.shape)
+        
+    
         adj = self.g_constr(x.device)
+        # print(adj.shape)
         
+    
         for tconv, gconv, bn, pool in zip(self.tconvs, self.gconvs, self.bns, self.diffpool):
+            x = tconv(x)  # Apply time convolution
+            # print(x.shape)
+            # sys.exit()
+            x = gconv(x, adj)  # Apply graph convolution
+            # feature_time_maps.append(x.detach())  # Save feature representation
+            # adj_matrices.append(adj.detach())  # Save adjacency matrix after pooling
+            x, adj, w_adj = pool(x, adj)  # Apply pooling, which might modify x and adj
             
-            x, adj = pool( gconv( tconv(x), adj ), adj )
             
-            x = self.activation( bn(x) )
+            feature_time_maps.append(x.detach().cpu().numpy())  # Save feature representation
             
-            x = F.dropout(x, p=self.dropout, training=self.training)
-        
-        out = self.global_pool(x)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
+            
+            adj_matrices.append(adj.detach().cpu().numpy())  # Save adjacency matrix after pooling
+            
+            
+            wadj_matrices.append(w_adj.detach().cpu().numpy())
 
-        return out
+            
+            x = self.activation(bn(x))
+            # feature_time_maps.append(x.detach().cpu().numpy())
+            x = F.dropout(x, p=self.dropout, training=self.training)
+    
+        out = self.global_pool(x)
+        out = out.view(out.size(0),out.size(-1),-1)
+        out = self.linear(out)
+        # print(out.shape)
+        # sys.exit()
+    
+        return out, feature_time_maps, adj_matrices, wadj_matrices

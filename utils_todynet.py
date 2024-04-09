@@ -89,6 +89,8 @@ def get_default_train_val_test_loader(args):
     # label_val   = torch.load(f'data/UCR/{dsid}/y_valid.pt')
     label_val   = torch.load(f'data/UCR/{dsid}/y_test.pt')
 
+    label_train = label_train.flatten().to(dtype=torch.int64)
+    label_val   = label_val.flatten().to(dtype=torch.int64)
     # init [num_variables, seq_length, num_classes]
     num_nodes = data_val.size(-2)
 

@@ -1,51 +1,104 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 from torch import Tensor
 from torch.nn import init
 from torch.nn.parameter import Parameter
+from torch.nn.functional import softmax
 
 
-class multi_shallow_embedding(nn.Module):
+# class multi_shallow_embedding(nn.Module):
     
+#     def __init__(self, num_nodes, k_neighs, num_graphs):
+#         super().__init__()
+        
+#         self.num_nodes = num_nodes
+#         self.k = k_neighs
+#         self.num_graphs = num_graphs
+
+#         self.emb_s = Parameter(Tensor(num_graphs, num_nodes, 1))
+#         self.emb_t = Parameter(Tensor(num_graphs, 1, num_nodes))
+        
+#     def reset_parameters(self):
+#         init.xavier_uniform_(self.emb_s)
+#         init.xavier_uniform_(self.emb_t)
+        
+        
+#     def forward(self, device):
+        
+#         # adj: [G, N, N]
+#         adj = torch.matmul(self.emb_s, self.emb_t).to(device)
+        
+#         # remove self-loop
+#         adj = adj.clone()
+#         idx = torch.arange(self.num_nodes, dtype=torch.long, device=device)
+#         adj[:, idx, idx] = float('-inf')
+        
+#         # top-k-edge adj
+#         adj_flat = adj.reshape(self.num_graphs, -1)
+#         indices = adj_flat.topk(k=self.k)[1].reshape(-1)
+        
+#         idx = torch.tensor([ i//self.k for i in range(indices.size(0)) ], device=device)
+        
+#         adj_flat = torch.zeros_like(adj_flat).clone()
+#         adj_flat[idx, indices] = 1.
+#         adj = adj_flat.reshape_as(adj)
+        
+#         return adj
+
+# MultiShallowEmbeddingEnhanced with Attention
+class multi_shallow_embedding(nn.Module):
+   
     def __init__(self, num_nodes, k_neighs, num_graphs):
         super().__init__()
-        
+       
         self.num_nodes = num_nodes
         self.k = k_neighs
         self.num_graphs = num_graphs
 
-        self.emb_s = Parameter(Tensor(num_graphs, num_nodes, 1))
-        self.emb_t = Parameter(Tensor(num_graphs, 1, num_nodes))
-        
+        self.emb_s = Parameter(torch.Tensor(num_graphs, num_nodes, 1))
+        self.emb_t = Parameter(torch.Tensor(num_graphs, 1, num_nodes))
+       
+        # Attention weights
+        self.attention_weights = Parameter(torch.Tensor(num_graphs, num_nodes, num_nodes))
+        self.reset_parameters()
+       
     def reset_parameters(self):
         init.xavier_uniform_(self.emb_s)
         init.xavier_uniform_(self.emb_t)
-        
-        
+        init.xavier_uniform_(self.attention_weights)
+       
     def forward(self, device):
-        
-        # adj: [G, N, N]
+        # Basic adjacency matrix
         adj = torch.matmul(self.emb_s, self.emb_t).to(device)
-        
+       
+        # Calculate scaled attention
+        attention_scores = softmax(self.attention_weights, dim=-1).to(device)
+       
+        # # Scale attention by the square root of the degree
+        # degree = attention_scores.sum(dim=-1, keepdim=True).sqrt()
+        scaled_attention = attention_scores / np.sqrt(self.num_nodes)
+       
+        # adj = adj * attention_scores
+        adj = adj * scaled_attention
+       
         # remove self-loop
         adj = adj.clone()
         idx = torch.arange(self.num_nodes, dtype=torch.long, device=device)
         adj[:, idx, idx] = float('-inf')
-        
+       
         # top-k-edge adj
         adj_flat = adj.reshape(self.num_graphs, -1)
         indices = adj_flat.topk(k=self.k)[1].reshape(-1)
-        
+       
         idx = torch.tensor([ i//self.k for i in range(indices.size(0)) ], device=device)
-        
+       
         adj_flat = torch.zeros_like(adj_flat).clone()
         adj_flat[idx, indices] = 1.
         adj = adj_flat.reshape_as(adj)
-        
+       
         return adj
-
 
 class Group_Linear(nn.Module):
     
@@ -221,12 +274,27 @@ class Dense_TimeDiffPool2d(nn.Module):
         
         # TODO: add Normalization
         self.time_conv = nn.Conv2d(pre_nodes, pooled_nodes, (1, kern_size), padding=(0, padding))
-        
         self.re_param = Parameter(Tensor(kern_size, 1))
+
+        ##added for attention in this module
+        # Adjusted attention layers for query, key 
+        # Todo (and optionally value) -does it make sense
+        self.query = nn.Linear(63, 63)
+        self.key = nn.Linear(63, 63)
+        ##todo- remove specific initialization add parameter to init
+        # self.query = nn.Linear(1, 1)
+        # self.key = nn.Linear(1, 1)
+
+
+        self.reset_parameters()
         
     def reset_parameters(self):
         self.time_conv.reset_parameters()
         init.kaiming_uniform_(self.re_param, nonlinearity='relu')
+
+        ######################################## for the attention
+        init.xavier_uniform_(self.query.weight)
+        init.xavier_uniform_(self.key.weight)
         
         
     def forward(self, x: Tensor, adj: Tensor):
@@ -235,155 +303,70 @@ class Dense_TimeDiffPool2d(nn.Module):
             x (Tensor): [B, C, N, F]
             adj (Tensor): [G, N, N]
         """
+        B, C, N, F = x.shape ## added lines  # Assuming x is [B, C, N, F]
+        #################################################################
         x = x.transpose(1, 2)
         out = self.time_conv(x)
         out = out.transpose(1, 2)
-        
+
+        out_features = out
+        ##################################################################
+
         # s: [ N^(l+1), N^l, 1, K ]
         s = torch.matmul(self.time_conv.weight, self.re_param).view(out.size(-2), -1)
 
         # TODO: fully-connect, how to decrease time complexity
         out_adj = torch.matmul(torch.matmul(s, adj), s.transpose(0, 1))
+        ###################################################################
         
-        return out, out_adj
+        G = adj.size(0)
+        # Reshape and transpose to include the graph dimension G
+        # xlater = out_features.reshape(B, C, self.G, N, -1).transpose(2, 3)  # [B, C, N, G, F']
+        out_features = out_features.view(B, C, N, G, -1).permute(0, 1, 3, 2, 4)  # Reshape to [B, C, G, N, F']
+        out_features_flat = out_features.reshape(B, C, G, N, -1)
+        # print(out_features_flat.shape)
+        out_features_flatpool = torch.mean(out_features_flat, axis=1)
+        # print(out_features_flatpool.shape)
+        # Apply query and key transformations
+        queries = self.query(out_features_flatpool)  # Shape: [B, C, G, N, pooled_nodes]
+        keys = self.key(out_features_flatpool)  # Shape: [B, C, G, N, pooled_nodes]
 
-    
-    
-    
-    
-    
-    
-    
-    
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn import Parameter, Linear
+        # Calculate attention scores
+        attention_scores = torch.einsum('bgnl,bgml->bgnm', (queries, keys))  # [B, C, G, N, N]
+        # print('att score shape before sfmax', attention_scores.shape)
+        # temperature = 0.5
+        # attention_scores = softmax(attention_scores / temperature, dim=-1)
 
-class DenseGINConv2d_v2(nn.Module):
-    
-    def __init__(self, in_channels, out_channels, groups=1, eps=0, train_eps=True, activation=F.relu):
-        super().__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.groups = groups
-        self.activation = activation
+        # attention_scores = softmax(attention_scores, dim=-1)  # Normalize over the last dimension
+        # print('att score shape', attention_scores.shape)
+
+        ### Apply modifications here ###
+
+        # # Example: Thresholding to reduce connectivity
+        # threshold = 0.01  # Example threshold value
+        # attention_scores = torch.where(attention_scores > threshold, attention_scores, torch.zeros_like(attention_scores))
         
-        # Multi-layer MLP with Group Linear Layers
-        self.mlp = nn.Sequential(
-            nn.Linear(in_channels, out_channels, bias=False),
-            nn.BatchNorm1d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Linear(out_channels, out_channels, bias=False),
-            nn.BatchNorm1d(out_channels)
-        )
+        # k = 5  # Keep top 5 connections per node
+        # topk_scores, indices = torch.topk(attention_scores, k=k, dim=-1)
+        # attention_scores_sparse = torch.zeros_like(attention_scores).scatter(dim=-1, index=indices, src=topk_scores)
+        # attention_scores = attention_scores_sparse  # Use the sparse scores
+
+        # attention_scores = torch.mean(attention_scores, dim=1)
+
+        # Combine attention_scores with the adjacency matrix
+        # Assuming adj is already [B, G, N, N]
+        adj_expanded = out_adj.unsqueeze(0).repeat(B, 1, 1, 1)
         
-        self.init_eps = eps
-        if train_eps:
-            self.eps = Parameter(torch.Tensor([eps]))
-        else:
-            self.register_buffer('eps', torch.Tensor([eps]))
-            
-        self.reset_parameters()
-            
-    def reset_parameters(self):
-        for layer in self.mlp:
-            if isinstance(layer, nn.Linear):
-                nn.init.kaiming_normal_(layer.weight, mode='fan_out', nonlinearity='relu')
-        self.eps.data.fill_(self.init_eps)
+        attention_scores = attention_scores.detach().cpu()
+        adj_expanded     = adj_expanded.detach().cpu()
         
-    def norm(self, adj: torch.Tensor, add_loop=True):
-        if add_loop:
-            adj = adj + torch.eye(adj.size(-1), device=adj.device)
-        deg_inv_sqrt = adj.sum(dim=-1).clamp(min=1).pow(-0.5)
-        adj = deg_inv_sqrt.unsqueeze(-1) * adj * deg_inv_sqrt.unsqueeze(-2)
-        return adj
-        
-    def forward(self, x: torch.Tensor, adj: torch.Tensor, add_loop=True):
-        adj = self.norm(adj, add_loop=add_loop)
-        
-        B, C, N, F = x.size()
-        x = x.view(B, C * N, F // (C * N)).transpose(1, 2)
-        
-        out = torch.matmul(adj, x)
-        out = out.transpose(1, 2).view(B, C, N, -1)
-        
-        # Apply MLP to each node feature vector
-        out = out.reshape(B * N, -1)
-        out = self.mlp(out)
-        out = out.reshape(B, C, N, -1)
-        
-        # Incorporate skip connection with learned ε
-        if add_loop:
-            out = (1 + self.eps) * x + out
-        
-        return out
-    
-    
-import torch
-import torch.nn.functional as F
-from torch.nn import Module, Linear, Parameter
-from torch.nn.init import xavier_uniform_
+        # print('attention_scores', attention_scores.shape, 'adj_expanded shape', adj_expanded.shape)
+        weighted_adj = attention_scores * adj_expanded  # Element-wise multiplication
+        # weighted_adj = weighted_adj.cpu()
+     
+        return out, out_adj, weighted_adj
 
-class GraphAttentionLayer(nn.Module):
-    def __init__(self, in_features, out_features, dropout=0.6, alpha=0.2, concat=True):
-        super(GraphAttentionLayer, self).__init__()
-        self.dropout = dropout
-        self.in_features = in_features
-        self.out_features = out_features
-        self.alpha = alpha
-        self.concat = concat
+##################################################################################################################    
 
-        self.W = Linear(in_features, out_features, bias=False)
-        self.a = Linear(2*out_features, 1, bias=False)
 
-        self.leakyrelu = nn.LeakyReLU(self.alpha)
-        self.reset_parameters()
 
-    def reset_parameters(self):
-        xavier_uniform_(self.W.weight)
-        xavier_uniform_(self.a.weight)
-
-    def forward(self, input, adj):
-        h = self.W(input)
-        N = h.size()[1]
-
-        a_input = self._prepare_attentional_mechanism_input(h)
-        e = self.leakyrelu(self.a(a_input))
-
-        attention = F.softmax(e, dim=2)
-        attention = F.dropout(attention, self.dropout, training=self.training)
-        h_prime = torch.matmul(attention, h)
-
-        if self.concat:
-            return F.elu(h_prime)
-        else:
-            return h_prime
-
-    def _prepare_attentional_mechanism_input(self, Wh):
-        N = Wh.size()[1]  # number of nodes
-        Wh_repeated_in_chunks = Wh.repeat_interleave(N, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, N, 1)
-        
-        all_combinations_matrix = torch.cat([Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2)
-        
-        return all_combinations_matrix.view(-1, N, N, 2 * self.out_features)
-
-class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
-        """Dense version of GAT."""
-        super(GAT, self).__init__()
-        self.dropout = dropout
-
-        self.attentions = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
-        for i, attention in enumerate(self.attentions):
-            self.add_module('attention_{}'.format(i), attention)
-
-        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
-
-    def forward(self, x, adj):
-        x = F.dropout(x, self.dropout, training=self.training)
-        x = torch.cat([att(x, adj) for att in self.attentions], dim=2)
-        x = F.dropout(x, self.dropout, training=self.training)
-        x = F.elu(self.out_att(x, adj))
-        return F.log_softmax(x, dim=1)

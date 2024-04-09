@@ -1,0 +1,232 @@
+hdf5_index,varname
+0,datetime
+1,ABPd
+2,ABPm
+3,ABPs
+4,ACE Inhibitors
+5,ALAT
+6,AMYL-Drainag
+7,AMYL-S
+8,ASAT
+9,AWPmean
+10,Acetazolamide_1.0
+11,Adenosin_1.0
+12,Administation of antimycotic_1.0
+13,Administriation of antibiotics_1.0
+14,AiwayCode_1.0
+15,AiwayCode_2.0
+16,AiwayCode_3.0
+17,AiwayCode_4.0
+18,AiwayCode_5.0
+19,AiwayCode_6.0
+20,Aldosteron Antagonist_1.0
+21,Alpha 2 Agonisten
+22,Amiodaron_1.0
+23,Ammoniak
+24,Andere_1.0
+25,Anexate_1.0
+26,Anti Fibrinolyticum_1.0
+27,Anti delirant medi_1.0
+28,Antiepileptica
+29,Antihelmenticum_1.0
+30,Antihistaminka_1.0
+31,Atropin_1.0
+32,B-Blocker
+33,BNP
+34,BSR
+35,Barbiturate_1.0
+36,Beh. Pulm. Hypertonie_1.0
+37,Benzodiacepine
+38,Bicarbonate_1.0
+39,Bilirubin direct
+40,C-reactive protein
+41,CO
+42,Ca Antagonists
+43,Ca2+ ionizied
+44,Ca2+ total
+45,Ca_1.0
+46,Chemotherapie_1.0
+47,Cl-
+48,Cortisol
+49,Digoxin_1.0
+50,ETCO2
+51,Enteral Feeding_1.0
+52,FFP
+53,FII
+54,FIO2
+55,Factor V
+56,Factor VII
+57,Ferritin
+58,Fibrinogen
+59,GCS Antwort
+60,GCS Augenï¿½ffnen
+61,GCS Motorik
+62,GCSF_1.0
+63,Glucose Administration
+64,Glucose Liquor
+65,HR
+66,Haemofiltration_1.0
+67,Hb
+68,Heparin
+69,ICP
+70,IN
+71,INR
+72,Immunoglobulin_1.0
+73,Immunsuppression_1.0
+74,Incolloid
+75,Incrys
+76,Insulin Kurzwirksam
+77,Insuling Langwirksam
+78,K+
+79,K-sparend_1.0
+80,Kalium_1.0
+81,Ketalar
+82,Laktat Liquor
+83,Lipase
+84,Liquor/h
+85,Loop diuretics
+86,Lysetherapie_1.0
+87,MCH
+88,MCHC
+89,MCV
+90,Marcoumar_1.0
+91,Mg_1.0
+92,Mg_lab
+93,Mineralokortikoid_1.0
+94,Muskelrelaxans_1.0
+95,NIBPd
+96,NIBPm
+97,NIBPs
+98,NMH_1.0
+99,NSAR_1.0
+100,Na+
+101,Na_1.0
+102,Naloxon_1.0
+103,Neutr
+104,Nimodipin_1.0
+105,Non-opioide_1.0
+106,OUT
+107,OUTurine/h
+108,Opiate
+109,Others in Case of HIT_1.0
+110,PAPd
+111,PAPm
+112,PAPs
+113,PCWP
+114,Pankreas Enzyme_1.0
+115,Parenteral Feeding_1.0
+116,Parkinson Medikaiton_1.0
+117,Peep
+118,Peripherial Anesthesia_1.0
+119,Phosphat_1.0
+120,Plateaudruck
+121,Propofol
+122,Protamin_1.0
+123,Psychopharma_1.0
+124,RASS
+125,RR
+126,RR set
+127,Rhythmus_1.0
+128,Rhythmus_10.0
+129,Rhythmus_11.0
+130,Rhythmus_12.0
+131,Rhythmus_13.0
+132,Rhythmus_14.0
+133,Rhythmus_15.0
+134,Rhythmus_16.0
+135,Rhythmus_5.0
+136,Rhythmus_6.0
+137,Rhythmus_7.0
+138,Rhythmus_8.0
+139,Rhythmus_9.0
+140,ST1
+141,ST2
+142,ST3
+143,Sartane
+144,Segm. Neut.
+145,SpO2
+146,Spitzendruck
+147,Stabk. Neut.
+148,Steroids
+149,SvO2(m)
+150,T Central
+151,TOF
+152,TSH
+153,TV
+154,Terlipressin_1.0
+155,Thiazide_1.0
+156,Thrombozytenhemmer_1.0
+157,Thyreostatikum_1.0
+158,Thyrotardin_1.0
+159,Thyroxin_1.0
+160,Trace elements_1.0
+161,Troponin-T
+162,Urea
+163,Ventilator mode_1.0
+164,Ventilator mode_11.0
+165,Ventilator mode_12.0
+166,Ventilator mode_13.0
+167,Ventilator mode_14.0
+168,Ventilator mode_15.0
+169,Ventilator mode_2.0
+170,Ventilator mode_3.0
+171,Ventilator mode_4.0
+172,Ventilator mode_5.0
+173,Ventilator mode_6.0
+174,Ventilator mode_7.0
+175,Ventilator mode_8.0
+176,VitB Substitution_1.0
+177,Weight
+178,ZVD
+179,Zentral venÃ¶se sÃ¤ttigung
+180,a-BE
+181,aPTT
+182,a_COHb
+183,a_HCO3-
+184,a_Hb
+185,a_Lac
+186,a_MetHb
+187,a_PO2
+188,a_SO2
+189,a_pCO2
+190,a_pH
+191,administration of antiviral_1.0
+192,admissiontime
+193,age
+194,albumin
+195,alkaline phosphatase
+196,bilirubine total
+197,coagulation factors_1.0
+198,creatine kinase
+199,creatine kinase-MB
+200,creatinine
+201,desmopressin
+202,dobutamine
+203,epinephrine
+204,factor X
+205,gamma-GT
+206,glucose
+207,height
+208,levosimendan
+209,lymphocyte
+210,milrinone
+211,non-steroids_1.0
+212,norepinephrine
+213,pH Drain
+214,pH Liquor
+215,packed red blood cells
+216,phosphate
+217,platelet count
+218,platelets
+219,procalcitonin
+220,sex_M
+221,steroids_1.0
+222,supplemental oxygen
+223,theophyllin
+224,total white blood cell count
+225,urinary Na+
+226,urinary creatinin
+227,urinary urea
+228,v-Lac
+229,vasodilatators_1.0
+230,vasopressin
